@@ -1,6 +1,6 @@
 # OPFS Strands Agent
 
-A TypeScript boilerplate for building AI agents that manage files **entirely in the browser** using the [Strands Agents TypeScript SDK](https://www.npmjs.com/package/@strands-agents/sdk) and [opfs-worker](https://www.npmjs.com/package/opfs-worker) (Origin Private File System).
+A Strands Agent (ts)  for building AI agents that manage files **entirely in the browser** using the [Strands Agents TypeScript SDK](https://www.npmjs.com/package/@strands-agents/sdk) and [opfs-worker](https://www.npmjs.com/package/opfs-worker) (Origin Private File System).
 
 This project is the TypeScript equivalent of the [Strands Agents Python file operations example](https://strandsagents.com/latest/documentation/docs/examples/python/file_operations/).
 
