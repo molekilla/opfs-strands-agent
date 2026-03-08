@@ -92,10 +92,11 @@ export class FileAgentService implements OnDestroy {
     try {
       for await (const event of this.agent.stream(prompt)) {
         if (
-          event.type === 'contentBlockDelta' &&
-          event.delta?.type === 'text_delta'
+          event instanceof ModelStreamUpdateEvent &&
+          event.event.type === 'modelContentBlockDeltaEvent' &&
+          event.event.delta.type === 'textDelta'
         ) {
-          const chunk: string = event.delta.text ?? ''
+          const chunk: string = event.event.delta.text
           this._lines.update((prev) => {
             const last = prev[prev.length - 1] ?? ''
             const [head, ...rest] = (last + chunk).split('\n')

@@ -389,3 +389,11 @@ Check current support: [caniuse.com/native-filesystem-api](https://caniuse.com/n
 ## License
 
 [MIT](LICENSE)
+
+---
+
+<div align="center">
+
+Made with ❤️ in Panama — Rogelio Morrell, 2026
+
+</div>

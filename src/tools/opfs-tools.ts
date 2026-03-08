@@ -219,6 +219,130 @@ export function createOpfsTools(fs: OPFSFileSystem) {
     },
   })
 
+  // ── "Files Are All You Need" tools ──────────────────────────────────────────
+  // Inspired by:
+  //   https://www.llamaindex.ai/blog/files-are-all-you-need
+  //   https://vercel.com/blog/how-to-build-agents-with-filesystems-and-bash
+  //   https://madalitso.me/notes/why-everyone-is-talking-about-filesystems/
+
+  /**
+   * Search all files under a directory for lines containing a query string.
+   * Returns matching file paths and the matching lines (up to 5 per file).
+   * Implements the "filesystem as knowledge base" pattern from the references above.
+   */
+  const searchFiles = tool({
+    name: 'search_files',
+    description:
+      'Search for a text query across all files under a directory. Returns each matching file and the lines that contain the query (case-insensitive). Useful for retrieving stored memories or finding relevant notes without a vector database.',
+    inputSchema: z.object({
+      directory: z
+        .string()
+        .describe('Root directory to search recursively (use "/" for the whole filesystem)'),
+      query: z.string().describe('Text to search for (case-insensitive)'),
+      maxMatchesPerFile: z
+        .number()
+        .optional()
+        .describe('Maximum matching lines to return per file (default: 5)'),
+    }),
+    callback: async ({ directory, query, maxMatchesPerFile = 5 }) => {
+      const index = await fs.index()
+      const results: string[] = []
+      const lowerQuery = query.toLowerCase()
+      const prefix = directory === '/' ? '/' : directory + '/'
+
+      for (const [filePath, stat] of index) {
+        if (!stat.isFile) continue
+        if (filePath !== directory && !filePath.startsWith(prefix)) continue
+
+        const content = await fs.readFile(filePath, 'utf-8')
+        const matchingLines = content
+          .split('\n')
+          .filter((line) => line.toLowerCase().includes(lowerQuery))
+          .slice(0, maxMatchesPerFile)
+
+        if (matchingLines.length > 0) {
+          results.push(`── ${filePath}`)
+          matchingLines.forEach((line) => results.push(`   ${line.trim()}`))
+        }
+      }
+
+      return results.length > 0
+        ? results.join('\n')
+        : `No matches for "${query}" under ${directory}`
+    },
+  })
+
+  /**
+   * Read several files at once and return all their contents.
+   * Implements the "files as context window" pattern: load multiple
+   * knowledge files before answering, instead of querying a database.
+   */
+  const readMultipleFiles = tool({
+    name: 'read_multiple_files',
+    description:
+      'Read several files at once and return all their contents concatenated with clear separators. Use this to build context from multiple knowledge files before responding.',
+    inputSchema: z.object({
+      paths: z
+        .array(z.string())
+        .describe('List of absolute file paths to read'),
+    }),
+    callback: async ({ paths }) => {
+      const sections: string[] = []
+      for (const path of paths) {
+        try {
+          const content = await fs.readFile(path, 'utf-8')
+          sections.push(`### ${path}\n${content}`)
+        } catch {
+          sections.push(`### ${path}\n[Error: file not found]`)
+        }
+      }
+      return sections.join('\n\n')
+    },
+  })
+
+  /**
+   * Serialise a value as formatted JSON and write it to a file.
+   * Files-as-structured-state: store agent outputs as machine-readable JSON
+   * that downstream steps can parse — the filesystem as a data exchange layer.
+   */
+  const writeJson = tool({
+    name: 'write_json',
+    description:
+      'Serialise a JavaScript value as pretty-printed JSON and write it to a file. Use this to persist structured agent outputs (objects, arrays) so they can be read by later pipeline steps.',
+    inputSchema: z.object({
+      path: z.string().describe('Absolute path where the JSON file will be written'),
+      value: z
+        .string()
+        .describe(
+          'A JSON-encoded string representing the value to store. Must be valid JSON (e.g. \'{"key":"value"}\' or \'[1,2,3]\').',
+        ),
+    }),
+    callback: async ({ path, value }) => {
+      const parsed: unknown = JSON.parse(value)
+      await fs.writeFile(path, JSON.stringify(parsed, null, 2))
+      return `JSON written to ${path}`
+    },
+  })
+
+  /**
+   * Parse and return a JSON file's contents as a formatted string.
+   * Allows agents to read back structured data written by write_json
+   * or any other tool that stores JSON files.
+   */
+  const readJson = tool({
+    name: 'read_json',
+    description:
+      'Read a JSON file and return its contents as a pretty-printed string. Use this to retrieve structured data written by write_json or other pipeline steps.',
+    inputSchema: z.object({
+      path: z.string().describe('Absolute path of the JSON file to read'),
+    }),
+    callback: async ({ path }) => {
+      const raw = await fs.readFile(path, 'utf-8')
+      const parsed: unknown = JSON.parse(raw)
+      return JSON.stringify(parsed, null, 2)
+    },
+  })
+
   return [
     writeFile,
     readFile,
@@ -231,6 +355,10 @@ export function createOpfsTools(fs: OPFSFileSystem) {
     renameFile,
     copyFile,
     indexFileSystem,
+    searchFiles,
+    readMultipleFiles,
+    writeJson,
+    readJson,
   ] as const
 }
 

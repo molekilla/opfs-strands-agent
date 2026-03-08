@@ -30,7 +30,7 @@ import {
   signal,
   ElementRef,
   viewChild,
-  afterEvery,
+  afterEveryRender,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { FileAgentService } from './file-manager.service.ts'
@@ -202,7 +202,7 @@ export class FileManagerComponent implements OnInit {
 
   // Auto-scroll whenever lines change
   constructor() {
-    afterEvery(() => {
+    afterEveryRender(() => {
       // reading this signal registers the dependency
       void this.agent.lines()
       const el = this.outputEl()?.nativeElement
