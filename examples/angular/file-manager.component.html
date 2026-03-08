@@ -1,0 +1,59 @@
+<!-- FileManagerComponent template — Angular 21 control-flow syntax -->
+
+<div style="text-align:center">
+  <h1>OPFS File Agent</h1>
+  <p class="subtitle">Powered by Strands Agents + opfs-worker (Angular&nbsp;21)</p>
+</div>
+
+<!-- Status badge -->
+<span class="status-badge" [class]="'status-' + agent.status()">
+  {{ agent.status() }}
+</span>
+
+<!-- Error banner -->
+@if (agent.error()) {
+  <div class="error-banner">{{ agent.error() }}</div>
+}
+
+<!-- Output card -->
+<div class="output-card">
+  <div class="output-header">
+    <span>Agent Output</span>
+    <button class="clear-btn" (click)="agent.clearLines()">Clear</button>
+  </div>
+  <pre #outputEl class="output">
+@if (agent.lines().length) {
+  @for (line of agent.lines(); track $index) {
+{{ line }}
+  }
+} @else if (agent.status() === 'initialising') {
+Initialising agent…
+} @else {
+Agent ready. Type a command below.
+}
+  </pre>
+</div>
+
+<!-- Input row -->
+<div class="input-row">
+  <textarea
+    rows="2"
+    [disabled]="!agent.isReady()"
+    [ngModel]="prompt()"
+    (ngModelChange)="prompt.set($event)"
+    (keydown)="onKeydown($event)"
+    placeholder='e.g. "Write a file at /hello.txt with content Hello!"'
+  ></textarea>
+
+  <button
+    class="run-btn"
+    [disabled]="!agent.isReady() || !prompt().trim()"
+    (click)="run()"
+  >
+    Run
+  </button>
+</div>
+
+<p class="hint">
+  Press <kbd>Enter</kbd> to run &nbsp;·&nbsp; <kbd>Shift+Enter</kbd> for newline
+</p>
